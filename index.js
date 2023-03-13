@@ -16,6 +16,21 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+const run = async () => {
+  try {
+    const serviceCollection = client.db("geniusCar").collection("services");
+    app.get("/services", async (req, res) => {
+      const query = {};
+      const cursor = serviceCollection.find(query);
+      const services = await cursor.toArray();
+      res.send(services);
+    });
+  } finally {
+  }
+};
+
+run().catch((err) => console.error(err));
+
 app.get("/", (req, res) => {
   res.send("genius car server is running");
 });

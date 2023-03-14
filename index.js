@@ -17,6 +17,21 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+const verifyJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
+
 const run = async () => {
   try {
     const serviceCollection = client.db("geniusCar").collection("services");
@@ -25,7 +40,7 @@ const run = async () => {
       const user = req.body;
       console.log(user);
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "1d",
       });
       res.send({ token });
     });
@@ -43,7 +58,13 @@ const run = async () => {
     });
 
     // orders api
-    app.get("/orders", async (req, res) => {
+    app.get("/orders", verifyJWT, async (req, res) => {
+      // console.log(req.headers.authorization);
+      const decoded = req.decoded;
+      console.log(decoded);
+      if (decoded.email != req.query.email) {
+        res.status(403).send({ message: "unauthorized access" });
+      }
       let query = {};
       if (req.query.email) {
         query = {
@@ -60,7 +81,7 @@ const run = async () => {
       res.send(result);
     });
 
-    app.patch("/orders/:id", async (req, res) => {
+    app.patch("/orders/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const status = req.body.status;
       const query = { _id: new ObjectId(id) };
@@ -73,7 +94,7 @@ const run = async () => {
       res.send(result);
     });
 
-    app.delete("/orders/:id", async (req, res) => {
+    app.delete("/orders/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await orderCollection.deleteOne(query);
